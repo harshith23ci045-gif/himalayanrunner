@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide Dashboard - Himalayan Runners</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div id="loadingIndicator"
+        style="position: fixed; top: 0; left: 0; right: 0; background: #1976d2; color: white; padding: 10px; text-align: center; z-index: 1000; display: none;">
+        Loading dashboard...
+    </div>
+
+    <div class="container" style="padding-bottom: 80px;">
+        <div class="dashboard-header">
+            <h1>Guide Dashboard</h1>
+            <p id="guideName"></p>
+            <button onclick="Auth.logout()" class="btn btn-outline"
+                style="margin-top: 1rem; color: white; border-color: white;">Logout</button>
+        </div>
+
+        <div class="glass-card mb-2">
+            <h3>Create New Trek</h3>
+            <form id="createTrekForm" class="mt-2">
+                <div class="form-group">
+                    <input id="location" placeholder="Location" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <input id="date" type="date" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Trek</button>
+            </form>
+        </div>
+
+        <div class="flex justify-between align-center mb-2">
+            <h3>Participants</h3>
+            <button onclick="exportCSV()" class="btn btn-outline btn-small">Export CSV</button>
+        </div>
+
+        <div id="participants" class="grid"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let user;
+        let myTreks = [];
+        let participants = [];
+
+        async function initDashboard() {
+            try {
+                // Show loading indicator
+                const loader = document.getElementById('loadingIndicator');
+                loader.style.display = 'block';
+
+                console.log('Initializing guide dashboard...');
+                user = await Auth.requireAuth();
+
+                if (!user) {
+                    console.log('No user found, redirecting to login');
+                    return;
+                }
+
+                console.log('User loaded:', user);
+
+                if (user.role !== 'Trek Guide') {
+                    console.log('User is not a guide, redirecting to index');
+                    alert('Access denied. This page is for Trek Guides only.');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                document.getElementById('guideName').textContent = user.full_name;
+                await loadData();
+
+                // Hide loading indicator
+                loader.style.display = 'none';
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                alert('Error loading dashboard. Please try again.');
+                window.location.href = 'login.html';
+            }
+        }
+
+        async function loadData() {
+            try {
+                const allTreks = await DB.getCollection('treks');
+                myTreks = allTreks.filter(t => t.guide_id === user.id);
+
+                const allRegistrations = await DB.getCollection('registrations');
+                const myTrekIds = myTreks.map(t => t.id);
+                participants = allRegistrations.filter(r => myTrekIds.includes(r.trek_id));
+
+                displayParticipants();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Error loading trek data. Please refresh the page.');
+            }
+        }
+
+        function displayParticipants() {
+            const div = document.getElementById('participants');
+            div.innerHTML = '';
+
+            if (participants.length === 0) {
+                div.innerHTML = '<p style="text-align: center; color: #666;">No participants yet.</p>';
+                return;
+            }
+
+            participants.forEach(p => {
+                const trek = myTreks.find(t => t.id === p.trek_id);
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+          <h4>Trek: ${trek?.location || 'Unknown'}</h4>
+          <p>User ID: ${p.trekker_id}</p>
+          <p>Status: <strong>${p.status}</strong></p>
+          ${p.status !== 'completed' ?
+                        `<button onclick="markCompleted('${p.id}', '${p.trekker_id}')" class="btn btn-accent mt-1">Mark Completed</button>` :
+                        ''
+                    }
+        `;
+                div.appendChild(card);
+            });
+        }
+
+        document.getElementById('createTrekForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const newTrek = {
+                    location: document.getElementById('location').value,
+                    date: document.getElementById('date').value,
+                    guide_id: user.id,
+                    status: 'upcoming'
+                };
+                await DB.add('treks', newTrek);
+                alert('Trek created successfully!');
+                document.getElementById('createTrekForm').reset();
+                await loadData();
+            } catch (error) {
+                console.error('Error creating trek:', error);
+                alert('Error creating trek. Please try again.');
+            }
+        });
+
+        async function markCompleted(regId, trekkerId) {
+            try {
+                // Update registration status
+                await DB.update('registrations', regId, { status: 'completed' });
+
+                // Update user trek count
+                const trekUser = await DB.findOne('users', { id: trekkerId });
+                if (trekUser) {
+                    await DB.update('users', trekUser.id, { trek_count: (trekUser.trek_count || 0) + 1 });
+                }
+
+                alert('Marked as completed!');
+                await loadData();
+            } catch (error) {
+                console.error('Error marking completed:', error);
+                alert('Error updating status. Please try again.');
+            }
+        }
+
+        function exportCSV() {
+            const headers = ['Registration ID', 'Trek ID', 'User ID', 'Status', 'Date'];
+            const rows = participants.map(p => [p.id, p.trek_id, p.trekker_id, p.status, p.created_at]);
+            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'participants.csv';
+            a.click();
+        }
+
+        // Initialize dashboard
+        initDashboard();
+    </script>
+</body>
+
+</html>
