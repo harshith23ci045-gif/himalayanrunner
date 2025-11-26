@@ -12,23 +12,28 @@
     <div class="container" style="padding-top: 2rem; padding-bottom: 80px;">
         <div class="glass-card" style="max-width: 500px; margin: 0 auto;">
             <h2 class="mb-3 text-center">Join Himalayan Runners</h2>
+
             <form id="registerForm">
                 <div class="form-group">
                     <label class="form-label">Full Name</label>
                     <input name="fullName" class="form-input" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Email</label>
                     <input name="email" type="email" class="form-input" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Phone Number</label>
                     <input name="phone" type="tel" class="form-input" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Aadhaar Number</label>
                     <input name="aadhaar" class="form-input" maxlength="12" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Role</label>
                     <select name="role" class="form-select">
@@ -36,26 +41,36 @@
                         <option value="Trek Guide">Trek Guide</option>
                     </select>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Password</label>
                     <input name="password" type="password" class="form-input" required>
                 </div>
+
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
             </form>
+
             <p class="mt-2 text-center">
-                Already have an account? <a href="login.html"
-                    style="color: var(--primary); font-weight: bold;">Login</a>
+                Already have an account?
+                <a href="login.html" style="color: var(--primary); font-weight: bold;">Login</a>
             </p>
         </div>
     </div>
 
+    <!-- Supabase Auth library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
+
+    <!-- Your Supabase client + Auth (module imports) -->
+    <script type="module" src="js/supabase-client.js"></script>
+    <script type="module" src="js/auth.js"></script>
+
+    <!-- Registration handler -->
+    <script type="module">
+        import Auth from "./js/auth.js";
+
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+
             const formData = {
                 fullName: e.target.fullName.value,
                 email: e.target.email.value,
@@ -66,6 +81,7 @@
             };
 
             const result = await Auth.register(formData);
+
             if (result.success) {
                 alert('Registration successful! Please login.');
                 window.location.href = 'login.html';
@@ -74,6 +90,7 @@
             }
         });
     </script>
+
 </body>
 
 </html>
