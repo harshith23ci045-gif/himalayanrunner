@@ -24,7 +24,9 @@
                     <input name="password" type="password" class="form-input" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Login
+                </button>
             </form>
 
             <p class="mt-2 text-center">
@@ -38,20 +40,18 @@
         </div>
     </div>
 
-    <!-- Supabase JS (external library) -->
+    <!-- Supabase library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Your Supabase client (with URL + ANON KEY) -->
+    <!-- Your module files -->
     <script type="module" src="js/supabase-client.js"></script>
-
-    <!-- Your new Auth logic (Supabase Auth version) -->
     <script type="module" src="js/auth.js"></script>
 
     <!-- Login handler -->
     <script type="module">
         import Auth from "./js/auth.js";
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
             e.preventDefault();
 
             const email = e.target.email.value;
@@ -76,4 +76,5 @@
     </script>
 
 </body>
+
 </html>
