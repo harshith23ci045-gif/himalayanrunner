@@ -12,51 +12,68 @@
     <div class="container" style="padding-top: 4rem;">
         <div class="glass-card" style="max-width: 400px; margin: 0 auto;">
             <h2 class="mb-3 text-center">Welcome Back</h2>
+
             <form id="loginForm">
                 <div class="form-group">
                     <label class="form-label">Email</label>
                     <input name="email" type="email" class="form-input" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Password</label>
                     <input name="password" type="password" class="form-input" required>
                 </div>
+
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
             </form>
+
             <p class="mt-2 text-center">
-                New here? <a href="register.html" style="color: var(--primary); font-weight: bold;">Register</a>
+                New here?
+                <a href="register.html" style="color: var(--primary); font-weight: bold;">Register</a>
             </p>
+
             <p class="mt-1 text-center">
                 <a href="forgot-password.html" style="color: var(--primary);">Forgot password?</a>
             </p>
         </div>
     </div>
 
+    <!-- Supabase JS (external library) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
+
+    <!-- Your Supabase client (with URL + ANON KEY) -->
+    <script type="module" src="js/supabase-client.js"></script>
+
+    <!-- Your new Auth logic (Supabase Auth version) -->
+    <script type="module" src="js/auth.js"></script>
+
+    <!-- Login handler -->
+    <script type="module">
+        import Auth from "./js/auth.js";
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+
             const email = e.target.email.value;
             const password = e.target.password.value;
 
             const result = await Auth.login(email, password);
+
             if (result.success) {
                 const role = result.user.role;
-                if (role === 'Admin') {
-                    window.location.href = 'dashboard-admin.html';
-                } else if (role === 'Trek Guide') {
-                    window.location.href = 'dashboard-guide.html';
+
+                if (role === "Admin") {
+                    window.location.href = "dashboard-admin.html";
+                } else if (role === "Trek Guide") {
+                    window.location.href = "dashboard-guide.html";
                 } else {
-                    window.location.href = 'dashboard-trekker.html';
+                    window.location.href = "dashboard-trekker.html";
                 }
             } else {
                 alert(result.error);
             }
         });
     </script>
-</body>
 
+</body>
 </html>
