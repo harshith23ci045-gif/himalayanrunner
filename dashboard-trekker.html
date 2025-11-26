@@ -54,142 +54,146 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/razorpay-config.js"></script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script>
+    <script type="module">
+        import { supabase } from "./js/supabase-client.js";
+        import Auth from "./js/auth.js";
+        import PaymentGateway from "./js/razorpay-config.js";
+
         async function initDashboard() {
+            const loader = document.getElementById('loadingIndicator');
+            loader.style.display = "block";
+
             try {
-                // Show loading indicator
-                const loader = document.getElementById('loadingIndicator');
-                loader.style.display = 'block';
-
-                console.log('Initializing trekker dashboard...');
                 const user = await Auth.requireAuth();
+                if (!user) return;
 
-                if (!user) {
-                    console.log('No user found, redirecting to login');
-                    return;
-                }
+                // USER PROFILE
+                document.getElementById("userName").textContent = `Welcome, ${user.full_name}`;
+                document.getElementById("trekCount").textContent = `Completed Treks: ${user.trek_count}`;
+                document.getElementById("phone").textContent = `Phone: ${Auth.maskPhone(user.phone)}`;
+                document.getElementById("aadhaar").textContent = `Aadhaar: **** **** ${user.aadhaar_last4}`;
 
-                console.log('User loaded:', user);
+                // DISCOUNT LOGIC
+                const discount = user.trek_count >= 3 ? 15 :
+                                 user.trek_count >= 1 ? 10 : 0;
 
-                // Display user info
-                document.getElementById('userName').textContent = `Welcome, ${user.full_name}`;
-                document.getElementById('trekCount').textContent = `Completed Treks: ${user.trek_count}`;
-                document.getElementById('phone').textContent = `Phone: ${Auth.maskPhone(user.phone)}`;
-                document.getElementById('aadhaar').textContent = `Aadhaar: **** **** ${user.aadhaar_last4}`;
-
-                // Show discount
-                const discount = user.trek_count >= 3 ? 15 : (user.trek_count >= 1 ? 10 : 0);
                 if (discount > 0) {
-                    const banner = document.getElementById('discountBanner');
+                    const banner = document.getElementById("discountBanner");
                     banner.textContent = `🎉 You have unlocked a ${discount}% Loyalty Discount!`;
-                    banner.classList.remove('hidden');
+                    banner.classList.remove("hidden");
                 }
 
-                // Load treks
-                const treks = await DB.getCollection('treks');
-                const registrations = await DB.find('registrations', { trekker_id: user.id });
+                // LOAD ALL TREKS
+                const { data: treks } = await supabase
+                    .from("treks")
+                    .select("*")
+                    .order("date", { ascending: true });
 
-                // Available treks
-                const availableDiv = document.getElementById('availableTreks');
-                const upcomingTreks = treks.filter(t => t.status === 'upcoming');
+                // LOAD USER REGISTRATIONS
+                const { data: registrations } = await supabase
+                    .from("registrations")
+                    .select("*")
+                    .eq("trekker_id", user.id);
 
-                if (upcomingTreks.length === 0) {
-                    availableDiv.innerHTML = '<p style="text-align: center; color: #666;">No upcoming treks available.</p>';
-                } else {
-                    upcomingTreks.forEach(trek => {
-                        const isRegistered = registrations.some(r => r.trek_id === trek.id);
-                        const card = document.createElement('div');
-                        card.className = 'stat-card';
-                        const amount = trek.amount || 9000;
-                        card.innerHTML = `
+                // AVAILABLE TREKS
+                renderAvailableTreks(treks, registrations, user);
+
+                // REGISTRATION HISTORY
+                renderHistory(treks, registrations);
+
+            } catch (err) {
+                console.error(err);
+                alert("Error loading dashboard. Please try again.");
+                window.location.href = "login.html";
+            }
+
+            loader.style.display = "none";
+        }
+
+        function renderAvailableTreks(treks, registrations, user) {
+            const div = document.getElementById("availableTreks");
+            div.innerHTML = "";
+
+            const upcoming = treks.filter(t => t.status === "upcoming");
+
+            if (upcoming.length === 0) {
+                div.innerHTML = `<p style="text-align:center;color:#666;">No upcoming treks.</p>`;
+                return;
+            }
+
+            upcoming.forEach(trek => {
+                const isRegistered = registrations.some(r => r.trek_id === trek.id);
+                const amount = trek.amount ?? 9000;
+
+                const card = document.createElement("div");
+                card.className = "stat-card";
+
+                card.innerHTML = `
                     <h4>${trek.location}</h4>
                     <p>${new Date(trek.date).toLocaleDateString()}</p>
-                    <p style="font-size: 1.2em; color: var(--primary); font-weight: bold;">₹${amount.toFixed(2)}</p>
-                    ${!isRegistered ?
-                                `<button onclick="registerTrek('${trek.id}', ${amount}, '${trek.location}')" class="btn btn-primary mt-1">Register & Pay</button>` :
-                                `<span class="feature-tag" style="background: #4caf50; color: white;">Registered</span>`
-                            }
-                  `;
-                        availableDiv.appendChild(card);
-                    });
-                }
-
-                // History
-                const historyDiv = document.getElementById('myHistory');
-                if (registrations.length === 0) {
-                    historyDiv.innerHTML = '<p style="text-align: center; color: #666;">No trek history yet.</p>';
-                } else {
-                    registrations.forEach(reg => {
-                        const trek = treks.find(t => t.id === reg.trek_id);
-                        const card = document.createElement('div');
-                        card.className = 'stat-card';
-                        card.style.borderLeft = `5px solid ${reg.status === 'completed' ? '#4caf50' : '#ff9900'}`;
-                        card.innerHTML = `
-                    <h4>${trek?.location || 'Unknown Trek'}</h4>
-                    <p>Status: ${reg.status}</p>
-                  `;
-                        historyDiv.appendChild(card);
-                    });
-                }
-
-                // Hide loading indicator
-                loader.style.display = 'none';
-            } catch (error) {
-                console.error('Error initializing dashboard:', error);
-                alert('Error loading dashboard. Please try again.');
-                window.location.href = 'login.html';
-            }
-        }
-
-        async function registerTrek(trekId, amount, location) {
-            try {
-                const user = await Auth.getCurrentUser();
-                
-                // Initiate Razorpay payment
-                PaymentGateway.initiatePayment(
-                    { id: trekId, location, amount, date: new Date().toISOString() },
-                    { id: user.id, full_name: user.full_name, email: user.email, phone: user.phone },
-                    async (paymentData) => {
-                        // Payment successful - register for trek
-                        try {
-                            // Store payment record
-                            await PaymentGateway.storePaymentRecord(paymentData);
-                            
-                            // Create registration
-                            const newReg = {
-                                trek_id: trekId,
-                                trekker_id: user.id,
-                                status: 'registered'
-                            };
-                            await DB.add('registrations', newReg);
-                            
-                            alert('✅ Payment successful! You have been registered for the trek.');
-                            location.reload();
-                        } catch (error) {
-                            console.error('Error completing registration:', error);
-                            alert('Payment was successful, but there was an error registering for the trek. Please contact support.');
-                        }
-                    },
-                    (error) => {
-                        // Payment failed or cancelled
-                        alert('❌ Payment failed: ' + error);
-                        console.error('Payment error:', error);
+                    <p style="font-size:1.2em;color:var(--primary);font-weight:bold;">₹${amount}</p>
+                    ${
+                        isRegistered
+                        ? `<span class="feature-tag" style="background:#4caf50;color:white;">Registered</span>`
+                        : `<button class="btn btn-primary mt-1" onclick="registerTrek('${trek.id}', ${amount}, '${trek.location}')">Register & Pay</button>`
                     }
-                );
-            } catch (error) {
-                console.error('Error initiating trek registration:', error);
-                alert('Error processing payment. Please try again.');
-            }
+                `;
+                div.appendChild(card);
+            });
         }
 
-        // Initialize dashboard
+        function renderHistory(treks, registrations) {
+            const div = document.getElementById("myHistory");
+            div.innerHTML = "";
+
+            if (!registrations || registrations.length === 0) {
+                div.innerHTML = `<p style="text-align:center;color:#666;">No history available.</p>`;
+                return;
+            }
+
+            registrations.forEach(reg => {
+                const trek = treks.find(t => t.id === reg.trek_id);
+
+                const card = document.createElement("div");
+                card.className = "stat-card";
+                card.style.borderLeft = `5px solid ${reg.status === "completed" ? "#4caf50" : "#ff9800"}`;
+
+                card.innerHTML = `
+                    <h4>${trek?.location ?? "Unknown Trek"}</h4>
+                    <p>Status: ${reg.status}</p>
+                `;
+                div.appendChild(card);
+            });
+        }
+
+        window.registerTrek = async function (trekId, amount, location) {
+            const user = await Auth.getCurrentUser();
+
+            PaymentGateway.initiatePayment(
+                { id: trekId, location, amount },
+                { id: user.id, full_name: user.full_name, email: user.email, phone: user.phone },
+                async (paymentData) => {
+                    await PaymentGateway.storePaymentRecord(paymentData);
+
+                    await supabase.from("registrations").insert({
+                        trek_id: trekId,
+                        trekker_id: user.id,
+                        status: "registered"
+                    });
+
+                    alert("Registration successful!");
+                    location.reload();
+                },
+                (err) => {
+                    console.error(err);
+                    alert("Payment failed or cancelled.");
+                }
+            );
+        };
+
         initDashboard();
     </script>
+
 </body>
 
 </html>

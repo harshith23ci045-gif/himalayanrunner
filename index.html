@@ -23,7 +23,6 @@
       <div style="margin-top: 2rem;">
         <a href="tel:6363710799" class="btn btn-outline"
           style="margin-right: 1rem; color: white; border-color: white;">Contact Us</a>
-        <!-- WhatsApp button removed per request -->
       </div>
 
       <div style="margin-top: 2rem;">
@@ -48,8 +47,35 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js"></script>
-  <script src="js/db.js"></script>
+  <script type="module">
+    import { supabase } from "./js/supabase-client.js";
+    // OPTIONAL: auto-redirect logged-in users based on role
+
+    (async () => {
+      const session = await supabase.auth.getSession();
+      if (!session.data.session) return; // no user logged in
+
+      const userId = session.data.session.user.id;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+      if (!profile) return;
+
+      // Auto redirect logged in users
+      if (profile.role === "Admin") {
+        window.location.href = "dashboard-admin.html";
+      } else if (profile.role === "Trek Guide") {
+        window.location.href = "dashboard-guide.html";
+      } else {
+        window.location.href = "dashboard-trekker.html";
+      }
+    })();
+  </script>
+
 </body>
 
 </html>

@@ -44,145 +44,149 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
+    <script type="module">
+
+        import { supabase } from "./js/supabase-client.js";
+        import Auth from "./js/auth.js";
+
         let user;
         let myTreks = [];
         let participants = [];
 
         async function initDashboard() {
+            const loader = document.getElementById("loadingIndicator");
+            loader.style.display = "block";
+
             try {
-                // Show loading indicator
-                const loader = document.getElementById('loadingIndicator');
-                loader.style.display = 'block';
-
-                console.log('Initializing guide dashboard...');
                 user = await Auth.requireAuth();
+                if (!user) return;
 
-                if (!user) {
-                    console.log('No user found, redirecting to login');
-                    return;
-                }
-
-                console.log('User loaded:', user);
-
-                if (user.role !== 'Trek Guide') {
-                    console.log('User is not a guide, redirecting to index');
-                    alert('Access denied. This page is for Trek Guides only.');
-                    window.location.href = 'index.html';
+                if (user.role !== "Trek Guide") {
+                    alert("Access denied. Trek Guides only.");
+                    window.location.href = "index.html";
                     return;
                 }
 
                 document.getElementById('guideName').textContent = user.full_name;
-                await loadData();
 
-                // Hide loading indicator
-                loader.style.display = 'none';
-            } catch (error) {
-                console.error('Error initializing dashboard:', error);
-                alert('Error loading dashboard. Please try again.');
-                window.location.href = 'login.html';
+                await loadTreksAndParticipants();
+
+            } catch (err) {
+                console.error(err);
+                alert("Error loading dashboard.");
+                window.location.href = "login.html";
             }
+
+            loader.style.display = "none";
         }
 
-        async function loadData() {
-            try {
-                const allTreks = await DB.getCollection('treks');
-                myTreks = allTreks.filter(t => t.guide_id === user.id);
+        async function loadTreksAndParticipants() {
+            // LOAD GUIDE'S TREKS
+            const { data: treks } = await supabase
+                .from("treks")
+                .select("*")
+                .eq("guide_id", user.id);
 
-                const allRegistrations = await DB.getCollection('registrations');
-                const myTrekIds = myTreks.map(t => t.id);
-                participants = allRegistrations.filter(r => myTrekIds.includes(r.trek_id));
+            myTreks = treks || [];
 
-                displayParticipants();
-            } catch (error) {
-                console.error('Error loading data:', error);
-                alert('Error loading trek data. Please refresh the page.');
-            }
+            // LOAD REGISTRATIONS FOR THESE TREKS
+            const trekIds = myTreks.map(t => t.id);
+
+            const { data: regs } = await supabase
+                .from("registrations")
+                .select("*")
+                .in("trek_id", trekIds);
+
+            participants = regs || [];
+
+            renderParticipants();
         }
 
-        function displayParticipants() {
-            const div = document.getElementById('participants');
-            div.innerHTML = '';
+        function renderParticipants() {
+            const div = document.getElementById("participants");
+            div.innerHTML = "";
 
             if (participants.length === 0) {
-                div.innerHTML = '<p style="text-align: center; color: #666;">No participants yet.</p>';
+                div.innerHTML = `<p style="text-align:center;color:#666;">No participants yet.</p>`;
                 return;
             }
 
             participants.forEach(p => {
                 const trek = myTreks.find(t => t.id === p.trek_id);
-                const card = document.createElement('div');
-                card.className = 'stat-card';
+
+                const card = document.createElement("div");
+                card.className = "stat-card";
+
                 card.innerHTML = `
-          <h4>Trek: ${trek?.location || 'Unknown'}</h4>
-          <p>User ID: ${p.trekker_id}</p>
-          <p>Status: <strong>${p.status}</strong></p>
-          ${p.status !== 'completed' ?
-                        `<button onclick="markCompleted('${p.id}', '${p.trekker_id}')" class="btn btn-accent mt-1">Mark Completed</button>` :
-                        ''
+                    <h4>Trek: ${trek?.location ?? "Unknown"}</h4>
+                    <p>Trekker ID: ${p.trekker_id}</p>
+                    <p>Status: <strong>${p.status}</strong></p>
+                    ${
+                        p.status !== "completed"
+                        ? `<button class="btn btn-accent mt-1" onclick="markCompleted('${p.id}', '${p.trekker_id}')">Mark Completed</button>`
+                        : ""
                     }
-        `;
+                `;
                 div.appendChild(card);
             });
         }
 
-        document.getElementById('createTrekForm').addEventListener('submit', async (e) => {
+        // CREATE TREK
+        document.getElementById("createTrekForm").addEventListener("submit", async (e) => {
             e.preventDefault();
-            try {
-                const newTrek = {
-                    location: document.getElementById('location').value,
-                    date: document.getElementById('date').value,
-                    guide_id: user.id,
-                    status: 'upcoming'
-                };
-                await DB.add('treks', newTrek);
-                alert('Trek created successfully!');
-                document.getElementById('createTrekForm').reset();
-                await loadData();
-            } catch (error) {
-                console.error('Error creating trek:', error);
-                alert('Error creating trek. Please try again.');
-            }
+
+            const newTrek = {
+                location: document.getElementById("location").value,
+                date: document.getElementById("date").value,
+                guide_id: user.id,
+                status: "upcoming"
+            };
+
+            await supabase.from("treks").insert(newTrek);
+
+            alert("Trek created!");
+            document.getElementById("createTrekForm").reset();
+
+            await loadTreksAndParticipants();
         });
 
-        async function markCompleted(regId, trekkerId) {
-            try {
-                // Update registration status
-                await DB.update('registrations', regId, { status: 'completed' });
+        // MARK COMPLETED
+        window.markCompleted = async function (regId, trekkerId) {
 
-                // Update user trek count
-                const trekUser = await DB.findOne('users', { id: trekkerId });
-                if (trekUser) {
-                    await DB.update('users', trekUser.id, { trek_count: (trekUser.trek_count || 0) + 1 });
-                }
+            await supabase
+                .from("registrations")
+                .update({ status: "completed" })
+                .eq("id", regId);
 
-                alert('Marked as completed!');
-                await loadData();
-            } catch (error) {
-                console.error('Error marking completed:', error);
-                alert('Error updating status. Please try again.');
-            }
+            await supabase
+                .from("profiles")
+                .update({ trek_count: supabase.rpc("increment_treks", { uid: trekkerId }) });
+
+            alert("Marked as completed!");
+            await loadTreksAndParticipants();
         }
 
-        function exportCSV() {
-            const headers = ['Registration ID', 'Trek ID', 'User ID', 'Status', 'Date'];
-            const rows = participants.map(p => [p.id, p.trek_id, p.trekker_id, p.status, p.created_at]);
-            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        // EXPORT CSV
+        window.exportCSV = function () {
+            const headers = ["Registration ID", "Trek ID", "Trekker ID", "Status"];
+            const rows = participants.map(p => [
+                p.id, p.trek_id, p.trekker_id, p.status
+            ]);
 
-            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+
+            const blob = new Blob([csvContent], { type: "text/csv" });
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
+            const a = document.createElement("a");
             a.href = url;
-            a.download = 'participants.csv';
+            a.download = "participants.csv";
             a.click();
-        }
+        };
 
-        // Initialize dashboard
         initDashboard();
+
     </script>
+
 </body>
 
 </html>

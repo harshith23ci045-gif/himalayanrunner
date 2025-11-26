@@ -41,86 +41,66 @@
             <p>All systems operational.</p>
             <p>Database: <strong>Supabase Cloud</strong></p>
             <p>Connection: <span id="connectionStatus">Checking...</span></p>
-            <button onclick="clearData()" class="btn btn-accent mt-2">Clear All Data</button>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
+    <script type="module">
+
+        import { supabase } from "./js/supabase-client.js";
+        import Auth from "./js/auth.js";
+
         async function initDashboard() {
+            const loader = document.getElementById('loadingIndicator');
+            loader.style.display = 'block';
+
             try {
-                // Show loading indicator
-                const loader = document.getElementById('loadingIndicator');
-                loader.style.display = 'block';
-
-                console.log('Initializing admin dashboard...');
+                // AUTH CHECK
                 const user = await Auth.requireAuth();
+                if (!user) return;
 
-                if (!user) {
-                    console.log('No user found, redirecting to login');
+                if (user.role !== "Admin") {
+                    alert("Access denied. Admins only.");
+                    window.location.href = "index.html";
                     return;
                 }
 
-                console.log('User loaded:', user);
+                // FETCH TOTAL USERS (profiles table)
+                const { count: userCount } = await supabase
+                    .from("profiles")
+                    .select("*", { count: "exact", head: true });
 
-                if (user.role !== 'Admin') {
-                    console.log('User is not an admin, redirecting to index');
-                    alert('Access denied. This page is for Administrators only.');
-                    window.location.href = 'index.html';
-                    return;
-                }
+                // FETCH TREKS
+                const { count: trekCount } = await supabase
+                    .from("treks")
+                    .select("*", { count: "exact", head: true });
 
-                // Check connection and load data
-                const users = await DB.getCollection('users');
-                const treks = await DB.getCollection('treks');
-                const registrations = await DB.getCollection('registrations');
+                // FETCH REGISTRATIONS
+                const { count: regCount } = await supabase
+                    .from("registrations")
+                    .select("*", { count: "exact", head: true });
 
-                document.getElementById('totalUsers').textContent = users.length;
-                document.getElementById('totalTreks').textContent = treks.length;
-                document.getElementById('totalRegistrations').textContent = registrations.length;
-                document.getElementById('connectionStatus').innerHTML = '<span style="color: #4caf50;">✓ Connected</span>';
+                // UPDATE UI
+                document.getElementById("totalUsers").textContent = userCount ?? 0;
+                document.getElementById("totalTreks").textContent = trekCount ?? 0;
+                document.getElementById("totalRegistrations").textContent = regCount ?? 0;
 
-                // Hide loading indicator
-                loader.style.display = 'none';
-            } catch (error) {
-                console.error('Error loading data:', error);
-                document.getElementById('connectionStatus').innerHTML = '<span style="color: #f44336;">✗ Error</span>';
-                alert('Error loading dashboard data. Please check your connection.');
+                document.getElementById("connectionStatus").innerHTML =
+                    '<span style="color: #4caf50;">✓ Connected</span>';
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById("connectionStatus").innerHTML =
+                    '<span style="color: #f44336;">✗ Error</span>';
+                alert("Error loading dashboard. Please try again.");
             }
+
+            loader.style.display = 'none';
         }
 
-        async function clearData() {
-            if (confirm('Are you sure you want to clear all data? This will delete ALL users, treks, and registrations from Supabase. This cannot be undone.')) {
-                try {
-                    // Delete all registrations
-                    await supabase.from('registrations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-                    // Delete all treks
-                    await supabase.from('treks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-                    // Delete all users
-                    await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-                    alert('All data cleared. Reinitializing...');
-
-                    // Reinitialize with seed data
-                    await DB.seedInitialData();
-
-                    sessionStorage.clear();
-                    location.reload();
-                } catch (error) {
-                    console.error('Error clearing data:', error);
-                    alert('Error clearing data. Check console for details.');
-                }
-            }
-        }
-
-        // Initialize dashboard
+        // INIT
         initDashboard();
+
     </script>
 </body>
-
 </html>
