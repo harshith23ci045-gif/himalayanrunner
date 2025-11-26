@@ -40,14 +40,12 @@
         </div>
     </div>
 
-    <!-- Supabase library -->
-    
-    <!-- Your module files -->
+    <!-- Load your Supabase client -->
     <script type="module" src="js/supabase-client.js"></script>
-    
-    <!-- Login handler -->
+
+    <!-- Login Logic -->
     <script type="module">
-        import Auth from "./js/auth-handler.js"; 
+        import Auth from "./js/auth.js";
 
         document.getElementById("loginForm").addEventListener("submit", async (e) => {
             e.preventDefault();
