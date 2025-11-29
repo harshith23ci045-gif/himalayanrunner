@@ -57,16 +57,10 @@
         </div>
     </div>
 
-    <!-- Supabase Auth library -->
-    
-    <!-- Your Supabase client + Auth (module imports) -->
-    <script type="module" src="js/supabase-client.js"></script>
-    
-    <!-- Registration handler -->
     <script type="module">
-        import Auth from "./js/auth-handler.js"; 
+        import Auth from "./js/auth-handler.js";
 
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        document.getElementById("registerForm").addEventListener("submit", async (e) => {
             e.preventDefault();
 
             const formData = {
@@ -81,8 +75,8 @@
             const result = await Auth.register(formData);
 
             if (result.success) {
-                alert('Registration successful! Please login.');
-                window.location.href = 'login.html';
+                alert("Registration successful! Check your email to verify.");
+                window.location.href = "login.html";
             } else {
                 alert(result.error);
             }
