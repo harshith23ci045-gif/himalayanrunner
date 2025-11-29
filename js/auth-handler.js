@@ -15,20 +15,18 @@ const Auth = {
         }
 
         const user = data.user;
-
-        // Fetch user profile
-        const { data: profile, error: pErr } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", user.id)
-            .single();
-
-        if (pErr) {
-            return { success: false, error: "User profile not found" };
-        }
+        const profile = {
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || '',
+            phone: user.user_metadata?.phone || '',
+            role: user.user_metadata?.role || 'Trekker',
+            aadhaar_encrypted: user.user_metadata?.aadhaar_encrypted,
+            aadhaar_last4: user.user_metadata?.aadhaar_last4,
+            trek_count: user.user_metadata?.trek_count || 0
+        };
 
         sessionStorage.setItem("currentUser", JSON.stringify(profile));
-
         return { success: true, user: profile };
     },
 
@@ -37,7 +35,7 @@ const Auth = {
     // -------------------------------
     async register(formData) {
         try {
-            // 1. Create Supabase Auth account
+            // 1. Create Supabase Auth account with user metadata
             const { data, error } = await supabase.auth.signUp({
                 email: formData.email.trim().toLowerCase(),
                 password: formData.password,
@@ -47,7 +45,8 @@ const Auth = {
                         phone: formData.phone,
                         role: formData.role,
                         aadhaar_encrypted: formData.aadhaar ? formData.aadhaar : null,
-                        aadhaar_last4: formData.aadhaar ? formData.aadhaar.slice(-4) : null
+                        aadhaar_last4: formData.aadhaar ? formData.aadhaar.slice(-4) : null,
+                        trek_count: 0
                     }
                 }
             });
@@ -57,31 +56,8 @@ const Auth = {
                 return { success: false, error: error.message };
             }
 
-            const user = data.user;
-
-            // 2. Try to insert into users table with proper error handling
-            if (user) {
-                const { data: insertData, error: insertErr } = await supabase
-                    .from("users")
-                    .insert([{
-                        id: user.id,
-                        email: formData.email.trim().toLowerCase(),
-                        full_name: formData.fullName,
-                        phone: formData.phone,
-                        role: formData.role,
-                        aadhaar_encrypted: formData.aadhaar ? formData.aadhaar : null,
-                        aadhaar_last4: formData.aadhaar ? formData.aadhaar.slice(-4) : null,
-                        trek_count: 0
-                    }]);
-
-                if (insertErr) {
-                    console.error("Database insert error:", insertErr);
-                    // Don't fail registration if insert fails - user account is created
-                    console.warn("User created in auth but profile insert failed. This may be due to RLS policies.");
-                }
-            }
-
-            return { success: true, user };
+            // Registration successful - user profile is stored in auth metadata
+            return { success: true, user: data.user };
         } catch (err) {
             console.error("Registration error:", err);
             return { success: false, error: err.message || "Registration failed" };
@@ -95,13 +71,17 @@ const Auth = {
         const session = await supabase.auth.getSession();
         if (!session.data.session) return null;
 
-        const user_id = session.data.session.user.id;
-
-        const { data: profile } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", user_id)
-            .single();
+        const user = session.data.session.user;
+        const profile = {
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || '',
+            phone: user.user_metadata?.phone || '',
+            role: user.user_metadata?.role || 'Trekker',
+            aadhaar_encrypted: user.user_metadata?.aadhaar_encrypted,
+            aadhaar_last4: user.user_metadata?.aadhaar_last4,
+            trek_count: user.user_metadata?.trek_count || 0
+        };
 
         return profile;
     },
