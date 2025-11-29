@@ -53,9 +53,10 @@
         </a>
     </div>
 
-        <script type="module">
+    <!-- SINGLE Supabase + Auth + Razorpay Module Load -->
+    <script type="module">
         import { supabase } from "./js/supabase-client.js";
-        import Auth from "./js/auth-handler.js"; 
+        import Auth from "./js/auth.js";          <!-- FIXED -->
         import PaymentGateway from "./js/razorpay-config.js";
 
         async function initDashboard() {
@@ -72,7 +73,7 @@
                 document.getElementById("phone").textContent = `Phone: ${Auth.maskPhone(user.phone)}`;
                 document.getElementById("aadhaar").textContent = `Aadhaar: **** **** ${user.aadhaar_last4}`;
 
-                // DISCOUNT LOGIC
+                // DISCOUNT
                 const discount = user.trek_count >= 3 ? 15 :
                                  user.trek_count >= 1 ? 10 : 0;
 
@@ -82,22 +83,20 @@
                     banner.classList.remove("hidden");
                 }
 
-                // LOAD ALL TREKS
+                // ALL TREKS
                 const { data: treks } = await supabase
                     .from("treks")
                     .select("*")
                     .order("date", { ascending: true });
 
-                // LOAD USER REGISTRATIONS
+                // USER REGISTRATIONS
                 const { data: registrations } = await supabase
                     .from("registrations")
                     .select("*")
                     .eq("trekker_id", user.id);
 
-                // AVAILABLE TREKS
+                // RENDER UI
                 renderAvailableTreks(treks, registrations, user);
-
-                // REGISTRATION HISTORY
                 renderHistory(treks, registrations);
 
             } catch (err) {

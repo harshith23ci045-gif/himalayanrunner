@@ -1,6 +1,7 @@
 import { supabase } from "./supabase-client.js";
 
 const Auth = {
+
     // -------------------------------
     // LOGIN
     // -------------------------------
@@ -15,16 +16,17 @@ const Auth = {
         }
 
         const user = data.user;
-        const profile = {
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || '',
-            phone: user.user_metadata?.phone || '',
-            role: user.user_metadata?.role || 'Trekker',
-            aadhaar_encrypted: user.user_metadata?.aadhaar_encrypted,
-            aadhaar_last4: user.user_metadata?.aadhaar_last4,
-            trek_count: user.user_metadata?.trek_count || 0
-        };
+
+        // Fetch profile
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+        if (profileError) {
+            return { success: false, error: "Unable to load profile" };
+        }
 
         sessionStorage.setItem("currentUser", JSON.stringify(profile));
         return { success: true, user: profile };
@@ -35,34 +37,47 @@ const Auth = {
     // -------------------------------
     async register(formData) {
         try {
-            // Create Supabase Auth account with minimal metadata
-            const { data, error } = await supabase.auth.signUp({
+            // 1. CREATE SUPABASE USER (ONLY email + password)
+            const { data: signupData, error: signupError } = await supabase.auth.signUp({
                 email: formData.email.trim().toLowerCase(),
                 password: formData.password
             });
 
-            if (error) {
-                console.error("Auth signup error:", error);
-                return { success: false, error: error.message };
+            if (signupError) {
+                return { success: false, error: signupError.message };
             }
 
-            // After successful signup, update user metadata
-            if (data.user) {
-                await supabase.auth.updateUser({
-                    data: {
-                        full_name: formData.fullName,
-                        phone: formData.phone,
-                        role: formData.role,
-                        aadhaar_encrypted: formData.aadhaar,
-                        aadhaar_last4: formData.aadhaar.slice(-4)
-                    }
-                });
+            const user = signupData.user;
+
+            if (!user) {
+                return { success: false, error: "Signup failed. Try again." };
             }
 
-            return { success: true, user: data.user };
+            // Aadhaar fields
+            const aadhaar_last4 = formData.aadhaar.slice(-4);
+            const aadhaar_encrypted = btoa(formData.aadhaar);
+
+            // 2. INSERT INTO PROFILES TABLE
+            const { error: profileError } = await supabase.from("profiles").insert({
+                id: user.id,
+                full_name: formData.fullName,
+                email: formData.email,
+                phone: formData.phone,
+                role: formData.role,
+                aadhaar_encrypted: aadhaar_encrypted,
+                aadhaar_last4: aadhaar_last4,
+                trek_count: 0
+            });
+
+            if (profileError) {
+                console.error("Profile insert error:", profileError);
+                return { success: false, error: "Database error saving new user" };
+            }
+
+            return { success: true, user };
+
         } catch (err) {
-            console.error("Registration error:", err);
-            return { success: false, error: err.message || "Registration failed" };
+            return { success: false, error: "Registration failed" };
         }
     },
 
@@ -74,16 +89,14 @@ const Auth = {
         if (!session.data.session) return null;
 
         const user = session.data.session.user;
-        const profile = {
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || '',
-            phone: user.user_metadata?.phone || '',
-            role: user.user_metadata?.role || 'Trekker',
-            aadhaar_encrypted: user.user_metadata?.aadhaar_encrypted,
-            aadhaar_last4: user.user_metadata?.aadhaar_last4,
-            trek_count: user.user_metadata?.trek_count || 0
-        };
+
+        const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+        if (error) return null;
 
         return profile;
     },
@@ -94,7 +107,7 @@ const Auth = {
     async logout() {
         await supabase.auth.signOut();
         sessionStorage.removeItem("currentUser");
-        window.location.href = "index.html";
+        window.location.href = "login.html";
     },
 
     async requireAuth() {
