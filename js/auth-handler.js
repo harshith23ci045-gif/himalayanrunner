@@ -8,7 +8,7 @@ async login(email, password) {
 
     const user = data.user;
 
-    // Fetch profile with role
+    // Fetch profile
     const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -19,7 +19,7 @@ async login(email, password) {
         return { success: false, error: "Profile not found" };
     }
 
-    // Redirect based on role
+    // REDIRECT using role
     if (profile.role === "Guide") {
         window.location.href = "dashboard-guide.html";
     } 
@@ -27,7 +27,7 @@ async login(email, password) {
         window.location.href = "dashboard-trekker.html";
     } 
     else {
-        return { success: false, error: "Invalid role" };
+        return { success: false, error: "Role not assigned" };
     }
 
     return { success: true };
