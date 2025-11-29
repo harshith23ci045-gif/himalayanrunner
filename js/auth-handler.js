@@ -8,27 +8,20 @@ async login(email, password) {
 
     const user = data.user;
 
-    // Fetch profile
+    // Fetch profile details
     const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
 
-    if (profileError || !profile) {
+    if (profileError || !profile)
         return { success: false, error: "Profile not found" };
-    }
 
-    // REDIRECT using role
-    if (profile.role === "Guide") {
-        window.location.href = "dashboard-guide.html";
-    } 
-    else if (profile.role === "Trekker") {
-        window.location.href = "dashboard-trekker.html";
-    } 
-    else {
-        return { success: false, error: "Role not assigned" };
-    }
-
-    return { success: true };
+    // Return both user + profile (so login page handles redirect)
+    return {
+        success: true,
+        user: user,
+        profile: profile
+    };
 }
