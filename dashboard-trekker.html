@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trekker Dashboard - Himalayan Runners</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css" />
 </head>
 
 <body>
@@ -18,8 +19,8 @@
             <h1 id="userName">Welcome</h1>
             <p>Trekker Profile</p>
 
-            <!-- FIXED LOGOUT BUTTON -->
-            <button id="logoutBtn" class="btn btn-outline"
+            <!-- FIXED: No HTML-style comments inside module scripts -->
+            <button id="logout-btn" class="btn btn-outline"
                 style="margin-top: 1rem; color: white; border-color: white;">
                 Logout
             </button>
@@ -38,170 +39,4 @@
         <div id="availableTreks" class="grid"></div>
 
         <h3 class="mt-3 mb-2">My History</h3>
-        <div id="myHistory" class="grid"></div>
-    </div>
-
-    <div class="bottom-nav">
-        <a href="index.html" class="nav-item">
-            <span style="font-size: 1.5rem;">🏠</span>
-            <span>Home</span>
-        </a>
-        <a href="dashboard-trekker.html" class="nav-item active">
-            <span style="font-size: 1.5rem;">🏔️</span>
-            <span>Treks</span>
-        </a>
-        <a href="dashboard-trekker.html" class="nav-item">
-            <span style="font-size: 1.5rem;">👤</span>
-            <span>Profile</span>
-        </a>
-    </div>
-
-    <!-- CLEAN WORKING SCRIPT MODULE -->
-    <script type="module">
-        import { supabase } from "./js/supabase-client.js";
-        import Auth from "./js/auth-handler.js";
-        import PaymentGateway from "./js/razorpay-config.js";
-
-        /* ------------------- LOGOUT ------------------- */
-        document.getElementById("logoutBtn").addEventListener("click", async () => {
-            await supabase.auth.signOut();
-            window.location.href = "login.html";
-        });
-
-        /* ------------------- LOAD DASHBOARD ------------------- */
-        async function initDashboard() {
-            const loader = document.getElementById('loadingIndicator');
-            loader.style.display = "block";
-
-            try {
-                const user = await Auth.requireAuth();
-                if (!user) return;
-
-                document.getElementById("userName").textContent = `Welcome, ${user.full_name}`;
-                document.getElementById("trekCount").textContent = `Completed Treks: ${user.trek_count}`;
-                document.getElementById("phone").textContent = `Phone: ${Auth.maskPhone(user.phone)}`;
-                document.getElementById("aadhaar").textContent = `Aadhaar: **** **** ${user.aadhaar_last4}`;
-
-                const discount = user.trek_count >= 3 ? 15 :
-                                 user.trek_count >= 1 ? 10 : 0;
-
-                if (discount > 0) {
-                    const banner = document.getElementById("discountBanner");
-                    banner.textContent = `🎉 You have unlocked a ${discount}% Loyalty Discount!`;
-                    banner.classList.remove("hidden");
-                }
-
-                const { data: treks } = await supabase
-                    .from("treks")
-                    .select("*")
-                    .order("date", { ascending: true });
-
-                const { data: registrations } = await supabase
-                    .from("registrations")
-                    .select("*")
-                    .eq("trekker_id", user.id);
-
-                renderAvailableTreks(treks, registrations, user);
-                renderHistory(treks, registrations);
-
-            } catch (err) {
-                console.error(err);
-                alert("Error loading dashboard.");
-                window.location.href = "login.html";
-            }
-
-            loader.style.display = "none";
-        }
-
-        /* ------------------- TREKS ------------------- */
-        function renderAvailableTreks(treks, registrations, user) {
-            const div = document.getElementById("availableTreks");
-            div.innerHTML = "";
-
-            const upcoming = treks.filter(t => t.status === "upcoming");
-
-            if (upcoming.length === 0) {
-                div.innerHTML = `<p style="text-align:center;color:#666;">No upcoming treks.</p>`;
-                return;
-            }
-
-            upcoming.forEach(trek => {
-                const registered = registrations.some(r => r.trek_id === trek.id);
-                const amount = trek.amount ?? 9000;
-
-                const card = document.createElement("div");
-                card.className = "stat-card";
-
-                card.innerHTML = `
-                    <h4>${trek.location}</h4>
-                    <p>${new Date(trek.date).toLocaleDateString()}</p>
-                    <p style="font-size:1.2em;color:var(--primary);font-weight:bold;">₹${amount}</p>
-                    ${
-                        registered
-                        ? `<span class="feature-tag" style="background:#4caf50;color:white;">Registered</span>`
-                        : `<button class="btn btn-primary mt-1" onclick="registerTrek('${trek.id}', ${amount}, '${trek.location}')">Register & Pay</button>`
-                    }
-                `;
-
-                div.appendChild(card);
-            });
-        }
-
-        function renderHistory(treks, registrations) {
-            const div = document.getElementById("myHistory");
-            div.innerHTML = "";
-
-            if (!registrations || registrations.length === 0) {
-                div.innerHTML = `<p style="text-align:center;color:#666;">No history.</p>`;
-                return;
-            }
-
-            registrations.forEach(reg => {
-                const trek = treks.find(t => t.id === reg.trek_id);
-
-                const card = document.createElement("div");
-                card.className = "stat-card";
-                card.style.borderLeft = `5px solid ${reg.status === "completed" ? "#4caf50" : "#ff9800"}`;
-
-                card.innerHTML = `
-                    <h4>${trek?.location ?? "Unknown Trek"}</h4>
-                    <p>Status: ${reg.status}</p>
-                `;
-
-                div.appendChild(card);
-            });
-        }
-
-        /* ------------------- PAYMENT + REGISTRATION ------------------- */
-        window.registerTrek = async function (trekId, amount, location) {
-            const user = await Auth.getCurrentUser();
-
-            PaymentGateway.initiatePayment(
-                { id: trekId, location, amount },
-                { id: user.id, full_name: user.full_name, email: user.email, phone: user.phone },
-
-                async (paymentData) => {
-                    await PaymentGateway.storePaymentRecord(paymentData);
-
-                    await supabase.from("registrations").insert({
-                        trek_id: trekId,
-                        trekker_id: user.id,
-                        status: "registered"
-                    });
-
-                    alert("Registration successful!");
-                    location.reload();
-                },
-
-                (err) => {
-                    console.error(err);
-                    alert("Payment failed.");
-                }
-            );
-        };
-
-        initDashboard();
-    </script>
-
-</body>
-</html>
+        <div id="myHistory" class="grid">
