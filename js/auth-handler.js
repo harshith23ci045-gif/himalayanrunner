@@ -69,7 +69,6 @@ const Auth = {
                         full_name: formData.fullName,
                         phone: formData.phone,
                         role: formData.role,
-                        password: formData.password,
                         aadhaar_encrypted: formData.aadhaar ? formData.aadhaar : null,
                         aadhaar_last4: formData.aadhaar ? formData.aadhaar.slice(-4) : null,
                         trek_count: 0
