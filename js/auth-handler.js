@@ -35,20 +35,10 @@ const Auth = {
     // -------------------------------
     async register(formData) {
         try {
-            // 1. Create Supabase Auth account with user metadata
+            // Create Supabase Auth account with minimal metadata
             const { data, error } = await supabase.auth.signUp({
                 email: formData.email.trim().toLowerCase(),
-                password: formData.password,
-                options: {
-                    data: {
-                        full_name: formData.fullName,
-                        phone: formData.phone,
-                        role: formData.role,
-                        aadhaar_encrypted: formData.aadhaar ? formData.aadhaar : null,
-                        aadhaar_last4: formData.aadhaar ? formData.aadhaar.slice(-4) : null,
-                        trek_count: 0
-                    }
-                }
+                password: formData.password
             });
 
             if (error) {
@@ -56,7 +46,19 @@ const Auth = {
                 return { success: false, error: error.message };
             }
 
-            // Registration successful - user profile is stored in auth metadata
+            // After successful signup, update user metadata
+            if (data.user) {
+                await supabase.auth.updateUser({
+                    data: {
+                        full_name: formData.fullName,
+                        phone: formData.phone,
+                        role: formData.role,
+                        aadhaar_encrypted: formData.aadhaar,
+                        aadhaar_last4: formData.aadhaar.slice(-4)
+                    }
+                });
+            }
+
             return { success: true, user: data.user };
         } catch (err) {
             console.error("Registration error:", err);
