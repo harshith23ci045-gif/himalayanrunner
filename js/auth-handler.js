@@ -1,8 +1,10 @@
 import { supabase } from "./supabase-client.js";
 
 const Auth = {
+    // --------------------------------------------------------
+    // REGISTER NEW USER
+    // --------------------------------------------------------
     async register(formData) {
-        // 1. Create Auth user
         const { data, error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password
@@ -10,9 +12,9 @@ const Auth = {
 
         if (error) return { success: false, error: error.message };
 
-        // 2. Insert profile row
         const user = data.user;
 
+        // Insert user profile
         const { error: profileError } = await supabase
             .from("profiles")
             .insert({
@@ -32,6 +34,9 @@ const Auth = {
         return { success: true };
     },
 
+    // --------------------------------------------------------
+    // LOGIN USER
+    // --------------------------------------------------------
     async login(email, password) {
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -41,6 +46,50 @@ const Auth = {
         if (error) return { success: false, error: "Invalid email or password" };
 
         return { success: true, user: data.user };
+    },
+
+    // --------------------------------------------------------
+    // GET CURRENT USER + PROFILE
+    // --------------------------------------------------------
+    async getCurrentUser() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+        return { ...user, ...profile };
+    },
+
+    // --------------------------------------------------------
+    // REQUIRE AUTH (REDIRECT IF NOT LOGGED IN)
+    // --------------------------------------------------------
+    async requireAuth() {
+        const user = await this.getCurrentUser();
+        if (!user) {
+            window.location.href = "login.html";
+            return null;
+        }
+        return user;
+    },
+
+    // --------------------------------------------------------
+    // LOGOUT
+    // --------------------------------------------------------
+    async logout() {
+        await supabase.auth.signOut();
+        window.location.href = "login.html";
+    },
+
+    // --------------------------------------------------------
+    // HELPER: MASK PHONE
+    // --------------------------------------------------------
+    maskPhone(phone) {
+        if (!phone) return "";
+        return "******" + phone.slice(-4);
     }
 };
 
