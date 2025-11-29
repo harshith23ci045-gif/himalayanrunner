@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,8 +17,12 @@
         <div class="dashboard-header">
             <h1 id="userName">Welcome</h1>
             <p>Trekker Profile</p>
-            <button onclick="Auth.logout()" class="btn btn-outline"
-                style="margin-top: 1rem; color: white; border-color: white;">Logout</button>
+
+            <!-- FIXED LOGOUT BUTTON -->
+            <button id="logoutBtn" class="btn btn-outline"
+                style="margin-top: 1rem; color: white; border-color: white;">
+                Logout
+            </button>
         </div>
 
         <div id="discountBanner" class="discount-banner hidden"></div>
@@ -53,12 +56,19 @@
         </a>
     </div>
 
-    <!-- SINGLE Supabase + Auth + Razorpay Module Load -->
+    <!-- CLEAN WORKING SCRIPT MODULE -->
     <script type="module">
         import { supabase } from "./js/supabase-client.js";
-        import Auth from "./js/auth.js";          <!-- FIXED -->
+        import Auth from "./js/auth-handler.js";
         import PaymentGateway from "./js/razorpay-config.js";
 
+        /* ------------------- LOGOUT ------------------- */
+        document.getElementById("logoutBtn").addEventListener("click", async () => {
+            await supabase.auth.signOut();
+            window.location.href = "login.html";
+        });
+
+        /* ------------------- LOAD DASHBOARD ------------------- */
         async function initDashboard() {
             const loader = document.getElementById('loadingIndicator');
             loader.style.display = "block";
@@ -67,13 +77,11 @@
                 const user = await Auth.requireAuth();
                 if (!user) return;
 
-                // USER PROFILE
                 document.getElementById("userName").textContent = `Welcome, ${user.full_name}`;
                 document.getElementById("trekCount").textContent = `Completed Treks: ${user.trek_count}`;
                 document.getElementById("phone").textContent = `Phone: ${Auth.maskPhone(user.phone)}`;
                 document.getElementById("aadhaar").textContent = `Aadhaar: **** **** ${user.aadhaar_last4}`;
 
-                // DISCOUNT
                 const discount = user.trek_count >= 3 ? 15 :
                                  user.trek_count >= 1 ? 10 : 0;
 
@@ -83,31 +91,29 @@
                     banner.classList.remove("hidden");
                 }
 
-                // ALL TREKS
                 const { data: treks } = await supabase
                     .from("treks")
                     .select("*")
                     .order("date", { ascending: true });
 
-                // USER REGISTRATIONS
                 const { data: registrations } = await supabase
                     .from("registrations")
                     .select("*")
                     .eq("trekker_id", user.id);
 
-                // RENDER UI
                 renderAvailableTreks(treks, registrations, user);
                 renderHistory(treks, registrations);
 
             } catch (err) {
                 console.error(err);
-                alert("Error loading dashboard. Please try again.");
+                alert("Error loading dashboard.");
                 window.location.href = "login.html";
             }
 
             loader.style.display = "none";
         }
 
+        /* ------------------- TREKS ------------------- */
         function renderAvailableTreks(treks, registrations, user) {
             const div = document.getElementById("availableTreks");
             div.innerHTML = "";
@@ -120,7 +126,7 @@
             }
 
             upcoming.forEach(trek => {
-                const isRegistered = registrations.some(r => r.trek_id === trek.id);
+                const registered = registrations.some(r => r.trek_id === trek.id);
                 const amount = trek.amount ?? 9000;
 
                 const card = document.createElement("div");
@@ -131,11 +137,12 @@
                     <p>${new Date(trek.date).toLocaleDateString()}</p>
                     <p style="font-size:1.2em;color:var(--primary);font-weight:bold;">₹${amount}</p>
                     ${
-                        isRegistered
+                        registered
                         ? `<span class="feature-tag" style="background:#4caf50;color:white;">Registered</span>`
                         : `<button class="btn btn-primary mt-1" onclick="registerTrek('${trek.id}', ${amount}, '${trek.location}')">Register & Pay</button>`
                     }
                 `;
+
                 div.appendChild(card);
             });
         }
@@ -145,7 +152,7 @@
             div.innerHTML = "";
 
             if (!registrations || registrations.length === 0) {
-                div.innerHTML = `<p style="text-align:center;color:#666;">No history available.</p>`;
+                div.innerHTML = `<p style="text-align:center;color:#666;">No history.</p>`;
                 return;
             }
 
@@ -160,16 +167,19 @@
                     <h4>${trek?.location ?? "Unknown Trek"}</h4>
                     <p>Status: ${reg.status}</p>
                 `;
+
                 div.appendChild(card);
             });
         }
 
+        /* ------------------- PAYMENT + REGISTRATION ------------------- */
         window.registerTrek = async function (trekId, amount, location) {
             const user = await Auth.getCurrentUser();
 
             PaymentGateway.initiatePayment(
                 { id: trekId, location, amount },
                 { id: user.id, full_name: user.full_name, email: user.email, phone: user.phone },
+
                 async (paymentData) => {
                     await PaymentGateway.storePaymentRecord(paymentData);
 
@@ -182,9 +192,10 @@
                     alert("Registration successful!");
                     location.reload();
                 },
+
                 (err) => {
                     console.error(err);
-                    alert("Payment failed or cancelled.");
+                    alert("Payment failed.");
                 }
             );
         };
@@ -193,5 +204,4 @@
     </script>
 
 </body>
-
 </html>
