@@ -1,10 +1,14 @@
-async login(email, password) {
+import { supabase } from "./supabase-client.js";
+
+export async function login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
     });
 
-    if (error) return { success: false, error: "Invalid email or password" };
+    if (error) {
+        return { success: false, error: "Invalid email or password" };
+    }
 
     const user = data.user;
 
@@ -15,10 +19,10 @@ async login(email, password) {
         .eq("id", user.id)
         .single();
 
-    if (profileError || !profile)
+    if (profileError || !profile) {
         return { success: false, error: "Profile not found" };
+    }
 
-    // Return both user + profile (so login page handles redirect)
     return {
         success: true,
         user: user,
