@@ -6,11 +6,16 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     const fullName = document.getElementById("fullName").value;
     const email = document.getElementById("email").value;
     const phone = document.getElementById("phone").value;
-    const aadhaar = document.getElementById("aadhaar").value;
     const role = document.getElementById("role").value;
     const password = document.getElementById("password").value;
 
-    const result = await authHandler.registerUser(fullName, email, phone, aadhaar, role, password);
+    const result = await authHandler.registerUser(
+        fullName,
+        email,
+        phone,
+        role,
+        password
+    );
 
     if (!result.success) {
         alert(result.error);

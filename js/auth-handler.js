@@ -1,8 +1,8 @@
 import { supabase } from "./supabase-client.js";
 
-async function registerUser(fullName, email, phone, aadhaar, role, password) {
+async function registerUser(fullName, email, phone, role, password) {
 
-    // Create account
+    // Create Supabase auth account
     const { data, error } = await supabase.auth.signUp({
         email: email,
         password: password
@@ -14,7 +14,7 @@ async function registerUser(fullName, email, phone, aadhaar, role, password) {
 
     const user = data.user;
 
-    // Insert profile data
+    // Insert profile into "profiles" table
     const { error: profileError } = await supabase
         .from("profiles")
         .insert([
@@ -22,7 +22,6 @@ async function registerUser(fullName, email, phone, aadhaar, role, password) {
                 id: user.id,
                 full_name: fullName,
                 phone: phone,
-                aadhaar: aadhaar,
                 role: role
             }
         ]);
