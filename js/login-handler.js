@@ -1,41 +1,27 @@
-import { supabase } from "./supabase-client.js";
+// js/login-handler.js
+import { login, getProfile } from "./auth-handler.js";
 
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
+const form = document.getElementById("loginForm");
+if (form) {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
-    if (error) {
-        alert(error.message);
-        return;
+    const password = document.getElementById("password").value;
+    const res = await login(email, password);
+    if (!res.success) {
+      alert("Login error: " + res.error);
+      return;
     }
 
-    const user = data.user;
+    // fetch profile to route user
+    const user = res.user;
+    const profile = await getProfile(user.id);
+    const role = profile.data?.role || "Trekker";
 
-    const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-    if (profileError) {
-        alert(profileError.message);
-        return;
-    }
-
-    const role = profile.role;
-
-    if (role === "Admin") {
-        window.location.href = "dashboard-admin.html";
-    } else if (role === "Trek Guide") {
-        window.location.href = "dashboard-guide.html";
+    if (role === "Trek Guide") {
+      window.location.href = "/guide-dashboard.html";
     } else {
-        window.location.href = "dashboard-trekker.html";
+      window.location.href = "/treks.html";
     }
-});
+  });
+}
