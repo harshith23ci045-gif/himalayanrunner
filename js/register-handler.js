@@ -1,21 +1,33 @@
-// js/register-handler.js
-import { registerTrekker } from "./auth-handler.js";
+import { supabase } from "./supabase-client.js";
 
-const form = document.getElementById("registerForm");
-if (form) {
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const fullName = document.getElementById("fullName").value.trim();
-    const email = document.getElementById("email").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const password = document.getElementById("password").value;
+document.getElementById("registerForm").addEventListener("submit", registerUser);
 
-    const res = await registerTrekker(fullName, email, phone, password);
-    if (!res.success) {
-      alert("Error: " + res.error);
-      return;
+async function registerUser(event) {
+  event.preventDefault();
+
+  const full_name = document.getElementById("fullName").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if (!full_name || !email || !phone || !password) {
+    alert("Fill all fields");
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name, phone, role: "trekker" }
     }
-    alert("Registered. Check your email for confirmation. Then login.");
-    window.location.href = "/login.html";
   });
+
+  if (error) {
+    alert("Error: " + error.message);
+    return;
+  }
+
+  alert("Account created! Check your email for verification.");
+  window.location.href = "/login.html";
 }
