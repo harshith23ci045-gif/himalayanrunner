@@ -1,31 +1,39 @@
 import { supabase } from "./supabase-client.js";
 
-export async function login(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+async function registerUser(fullName, email, phone, aadhaar, role, password) {
+
+    // Create account
+    const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password
     });
 
     if (error) {
-        return { success: false, error: "Invalid email or password" };
+        return { success: false, error: error.message };
     }
 
     const user = data.user;
 
-    // Fetch profile details
-    const { data: profile, error: profileError } = await supabase
+    // Insert profile data
+    const { error: profileError } = await supabase
         .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+        .insert([
+            {
+                id: user.id,
+                full_name: fullName,
+                phone: phone,
+                aadhaar: aadhaar,
+                role: role
+            }
+        ]);
 
-    if (profileError || !profile) {
-        return { success: false, error: "Profile not found" };
+    if (profileError) {
+        return { success: false, error: profileError.message };
     }
 
-    return {
-        success: true,
-        user: user,
-        profile: profile
-    };
+    return { success: true };
 }
+
+export default {
+    registerUser
+};

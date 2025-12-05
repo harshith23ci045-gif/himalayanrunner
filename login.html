@@ -1,76 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
+<script type="module">
+    import Auth from "./js/auth-handler.js";
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Himalayan Runners</title>
-    <link rel="stylesheet" href="css/styles.css">
-</head>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-<body>
-    <div class="container" style="padding-top: 4rem;">
-        <div class="glass-card" style="max-width: 400px; margin: 0 auto;">
-            <h2 class="mb-3 text-center">Welcome Back</h2>
+        const email = e.target.email.value;
+        const password = e.target.password.value;
 
-            <form id="loginForm">
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input name="email" type="email" class="form-input" required>
-                </div>
+        const result = await Auth.login(email, password);
 
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input name="password" type="password" class="form-input" required>
-                </div>
+        if (!result.success) {
+            alert(result.error);
+            return;
+        }
 
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    Login
-                </button>
-            </form>
+        // Read role from profile (NOT from user)
+        const role = result.profile.role;
 
-            <p class="mt-2 text-center">
-                New here?
-                <a href="register.html" style="color: var(--primary); font-weight: bold;">Register</a>
-            </p>
-
-            <p class="mt-1 text-center">
-                <a href="forgot-password.html" style="color: var(--primary);">Forgot password?</a>
-            </p>
-        </div>
-    </div>
-
-    <!-- Load your Supabase client -->
-    <script type="module" src="js/supabase-client.js"></script>
-
-    <!-- Login Logic -->
-    <script type="module">
-        import Auth from "./js/auth-handler.js";
-
-        document.getElementById("loginForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-
-            const email = e.target.email.value;
-            const password = e.target.password.value;
-
-            const result = await Auth.login(email, password);
-
-            if (result.success) {
-                const role = result.user.role;
-
-                if (role === "Admin") {
-                    window.location.href = "dashboard-admin.html";
-                } else if (role === "Trek Guide") {
-                    window.location.href = "dashboard-guide.html";
-                } else {
-                    window.location.href = "dashboard-trekker.html";
-                }
-            } else {
-                alert(result.error);
-            }
-        });
-    </script>
-
-</body>
-
-</html>
+        if (role === "Admin") {
+            window.location.href = "dashboard-admin.html";
+        } else if (role === "Trek Guide") {
+            window.location.href = "dashboard-guide.html";
+        } else {
+            window.location.href = "dashboard-trekker.html";
+        }
+    });
+</script>
