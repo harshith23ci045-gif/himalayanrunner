@@ -15,66 +15,23 @@
 
     <section class="card">
       <h3>Create New Trek</h3>
-      <label>Title</label><input id="trek-title" />
-      <label>Description</label><textarea id="trek-desc"></textarea>
-      <label>Amount (INR)</label><input id="trek-amount" type="number" />
+
+      <label>Trek Name</label>
+      <input id="trek_name" />
+
+      <label>Date</label>
+      <input id="trek_date" type="date" />
+
+      <label>Price (INR)</label>
+      <input id="trek_price" type="number" />
+
       <button id="createTrekBtn" class="btn">Create Trek</button>
     </section>
 
+    <h3>Your Treks</h3>
     <section id="myTreks" class="list"></section>
   </main>
 
-  <script type="module">
-    import { supabase } from "./js/supabase-client.js";
-    import { createTrek, listTreksByGuide, fetchBookingsForTrek, bookingsToCSV } from "./js/trek-handler.js";
-
-    async function loadGuideData() {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) { window.location.href="/login.html"; return; }
-
-      const { data: treks } = await listTreksByGuide(user.id);
-      const container = document.getElementById("myTreks");
-      if (!treks || treks.length === 0) container.innerHTML = "<p>No treks yet.</p>";
-      container.innerHTML = treks.map(t => `
-        <article class="card">
-          <h4>${t.title}</h4>
-          <p>${t.description || ""}</p>
-          <div class="row">
-            <strong>₹${t.amount}</strong>
-            <button class="btn small csv" data-id="${t.id}">Download bookings CSV</button>
-          </div>
-        </article>
-      `).join("");
-
-      document.querySelectorAll(".csv").forEach(b => {
-        b.addEventListener("click", async (ev) => {
-          const trekId = b.dataset.id;
-          const { data: bookings } = await fetchBookingsForTrek(trekId);
-          const csv = bookingsToCSV(bookings || []);
-          const blob = new Blob([csv], { type: "text/csv" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = `bookings_${trekId}.csv`; document.body.appendChild(a); a.click(); a.remove();
-        });
-      });
-    }
-
-    document.getElementById("createTrekBtn").addEventListener("click", async ()=> {
-      const title = document.getElementById("trek-title").value.trim();
-      const description = document.getElementById("trek-desc").value.trim();
-      const amount = parseFloat(document.getElementById("trek-amount").value);
-      if (!title || !amount) return alert("Title and amount required");
-      await createTrek(title, description, amount);
-      alert("Trek created");
-      loadGuideData();
-    });
-
-    document.getElementById("btn-logout").addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      window.location.href = "/login.html";
-    });
-
-    loadGuideData();
-  </script>
+  <script type="module" src="/js/guide-dashboard.js"></script>
 </body>
 </html>
