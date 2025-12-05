@@ -1,29 +1,52 @@
-import authHandler from "./js/auth-handler.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Himalayan Runners</title>
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
 
-document.getElementById("registerForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
+<body>
 
-    const fullName = document.getElementById("fullName").value;
-    const email = document.getElementById("email").value;
-    const phone = document.getElementById("phone").value;
-    const aadhaar = document.getElementById("aadhaar").value;
-    const role = document.getElementById("role").value;
-    const password = document.getElementById("password").value;
+    <div class="container">
+        <h2>Create an Account</h2>
 
-    const result = await authHandler.registerUser(
-        fullName,
-        email,
-        phone,
-        aadhaar,
-        role,
-        password
-    );
+        <form id="registerForm">
 
-    if (!result.success) {
-        alert(result.error);
-        return;
-    }
+            <label>Full Name</label>
+            <input type="text" id="fullName" required>
 
-    alert("Account created! Check your email.");
-    window.location.href = "login.html";
-});
+            <label>Email</label>
+            <input type="email" id="email" required>
+
+            <label>Phone Number</label>
+            <input type="text" id="phone" required>
+
+            <label>Aadhaar Number</label>
+            <input type="text" id="aadhaar" required>
+
+            <label>Role</label>
+            <select id="role">
+                <option value="Trekker">Trekker</option>
+                <option value="Trek Guide">Trek Guide</option>
+                <option value="Admin">Admin</option>
+            </select>
+
+            <label>Password</label>
+            <input type="password" id="password" required>
+
+            <button type="submit">Register</button>
+
+        </form>
+
+        <p>
+            Already have an account? <a href="login.html">Login</a>
+        </p>
+    </div>
+
+    <!-- THIS IS WHERE YOUR JS BELONGS -->
+    <script type="module" src="./js/register-handler.js"></script>
+
+</body>
+</html>
