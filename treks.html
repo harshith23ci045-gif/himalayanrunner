@@ -3,108 +3,90 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Treks - Himalayan Runners</title>
-  <link rel="stylesheet" href="/css/styles.css" />
+  <title>Treks – Himalayan Runners</title>
+
+  <link rel="stylesheet" href="/css/treks.css" />
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 
 <body>
-  <main class="container">
-    <header class="top">
-      <h2>Available Treks</h2>
-      <a class="btn ghost" id="btn-logout">Logout</a>
-    </header>
 
-    <div id="trekList" class="list"></div>
-  </main>
+    <!-- CATEGORY BAR -->
+    <section class="category-bar">
+        <button class="cat active">Himalayan Treks</button>
+        <button class="cat">Sunrise Treks</button>
+        <button class="cat">Monsoon Treks</button>
+        <button class="cat">Yatra</button>
+        <button class="cat">Backpacking</button>
+    </section>
 
-  <script type="module">
-    import { supabase } from "./js/supabase-client.js";
-    import { listTreks } from "./js/trek-handler.js";
-    import { createRazorpayOrder, openRazorpayCheckout } from "./js/razorpay-client.js";
+    <!-- TREK GRID -->
+    <main class="trek-grid" id="trekList"></main>
 
-    const RAZORPAY_KEY_ID = "REPLACE_WITH_RAZORPAY_KEY_ID"; // put your real key here
-    const trekListEl = document.getElementById("trekList");
+<script type="module">
+import { supabase } from "./js/supabase-client.js";
+import { listTreks } from "./js/trek-handler.js";
 
-    async function fetchAndRender() {
+function safe(v, fallback = "") {
+    return v === null || v === undefined ? fallback : v;
+}
 
-      const { data, error } = await listTreks();
-      if (error) {
-        trekListEl.innerText = "Error loading treks";
+async function loadTreks() {
+    const { data, error } = await listTreks();
+
+    if (error) {
+        document.getElementById("trekList").innerHTML = "Error loading treks.";
         console.error(error);
         return;
-      }
-
-      if (!data || data.length === 0) {
-        trekListEl.innerText = "No treks available.";
-        return;
-      }
-
-      trekListEl.innerHTML = data
-        .map(
-          (t) => `
-        <article class="card trek">
-          <h3>${t.trek_name}</h3>
-          <p><strong>Date:</strong> ${t.date}</p>
-          <p><strong>Price:</strong> ₹${t.price}</p>
-          <p>${t.description || ""}</p>
-
-          <div class="row">
-            <button 
-              data-id="${t.id}" 
-              data-price="${t.price}" 
-              class="btn pay">
-              Pay
-            </button>
-          </div>
-        </article>
-        `
-        )
-        .join("");
-
-      document.querySelectorAll(".pay").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const trekId = btn.dataset.id;
-          const price = Number(btn.dataset.price);
-
-          try {
-            // 1️⃣ Create Razorpay order
-            const order = await createRazorpayOrder(price);
-
-            // 2️⃣ Open Razorpay checkout
-            const user = (await supabase.auth.getUser()).data.user;
-            const res = await openRazorpayCheckout(order, RAZORPAY_KEY_ID, {
-              prefill: { email: user.email },
-              description: "Trek booking",
-            });
-
-            // 3️⃣ Save booking in Supabase
-            await supabase.from("bookings").insert([
-              {
-                trek_id: trekId,
-                user_id: user.id,
-                amount_paid: price,
-                payment_id: res.razorpay_payment_id,
-              },
-            ]);
-
-            alert("Payment successful!");
-          } catch (err) {
-            console.error(err);
-            alert("Payment failed: " + err.message);
-          }
-        });
-      });
     }
 
-    document
-      .getElementById("btn-logout")
-      .addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "/login.html";
-      });
+    if (!data || data.length === 0) {
+        document.getElementById("trekList").innerHTML = "No treks available.";
+        return;
+    }
 
-    fetchAndRender();
-  </script>
-</body>
-</html>
+    document.getElementById("trekList").innerHTML = data.map(t => {
+        const image = safe(t.image_url, "/images/default.jpg");
+        const title = safe(t.title, "Untitled Trek");
+        const desc = safe(t.description, "");
+        const price = safe(t.amount, "0");
+        const oldPrice = t.old_price ? `<span class="old-price">₹${t.old_price}</span>` : "";
+
+        const days = safe(t.days, "5 days");
+        const difficulty = safe(t.difficulty, "Easy");
+        const region = safe(t.region, "HIMALAYAN");
+        const nextDate = safe(t.next_date, "Soon");
+
+        return `
+        <div class="trek-card">
+            
+            <div class="img-wrap">
+                <img src="${image}" alt="${title}" />
+                <span class="badge">Himalayan-treks</span>
+            </div>
+
+            <div class="content">
+                <h3>${title}</h3>
+
+                <div class="meta-row">
+                    <span>📍 ${region}</span>
+                    <span>🕒 ${days}</span>
+                </div>
+
+                <div class="meta-row">
+                    <span>▲ ${difficulty}</span>
+                    <span>📅 Next: ${nextDate}</span>
+                </div>
+
+                <p class="desc">${desc}</p>
+
+                <div class="price-row">
+                    <span class="price">₹${price}</span>
+                    ${oldPrice}
+                    <span class="arrow">→</span>
+                </div>
+            </div>
+
+        </div>
+        `;
+    }).join("");
