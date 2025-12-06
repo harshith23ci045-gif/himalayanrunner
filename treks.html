@@ -1,110 +1,186 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Treks - Himalayan Runners</title>
-  <link rel="stylesheet" href="/css/styles.css" />
+  <title>Treks – Himalayan Runners</title>
+
+  <link rel="stylesheet" href="/css/site.css" />
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
-
 <body>
-  <main class="container">
-    <header class="top">
-      <h2>Available Treks</h2>
-      <a class="btn ghost" id="btn-logout">Logout</a>
-    </header>
 
-    <div id="trekList" class="list"></div>
+  <!-- NAV (same markup as index) -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/index.html">
+        <img src="/images/hero-image.png" alt="logo" class="brand-logo" />
+        <span class="brand-name">Himalayan Runners</span>
+      </a>
+
+      <nav class="nav">
+        <a href="/index.html">Home</a>
+        <a href="/treks.html" class="active">Treks</a>
+        <a href="/treks.html#weekend">Weekend Getaways</a>
+        <a href="/blogs.html">Blogs</a>
+      </nav>
+
+      <div class="auth">
+        <a href="/login.html" class="btn btn-ghost">Log in</a>
+        <a href="/register.html" class="btn btn-primary">Sign up</a>
+      </div>
+
+      <button class="mobile-toggle" id="mobileToggle2" aria-label="menu">☰</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="container category-bar-wrap">
+      <div class="category-bar">
+        <button class="pill active">All Treks</button>
+        <button class="pill">Sunrise Treks</button>
+        <button class="pill">Monsoon Treks</button>
+        <button class="pill">Himalayan Treks</button>
+        <button class="pill">Backpacking</button>
+      </div>
+    </section>
+
+    <section class="container trek-list-wrap">
+      <div id="trekList" class="trek-grid">
+        <!-- JS will render trek cards here -->
+      </div>
+    </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <strong>Himalayan Runners</strong>
+        <p>Trusted trekking experiences across the Himalayas.</p>
+      </div>
+      <div class="footer-links">
+        <a href="/treks.html">Treks</a>
+        <a href="/blogs.html">Blogs</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <a href="/contact.html" class="floating-enquire">❓ Enquire Now</a>
 
   <script type="module">
     import { supabase } from "./js/supabase-client.js";
     import { listTreks } from "./js/trek-handler.js";
-    import { createRazorpayOrder, openRazorpayCheckout } from "./js/razorpay-client.js";
+    // Optional: import Razorpay utilities if you have them:
+    // import { createRazorpayOrder, openRazorpayCheckout } from "./js/razorpay-client.js";
 
-    const RAZORPAY_KEY_ID = "REPLACE_WITH_RAZORPAY_KEY_ID"; // put your real key here
     const trekListEl = document.getElementById("trekList");
 
-    async function fetchAndRender() {
+    function safe(v, fallback = "") { return v === null || v === undefined ? fallback : v; }
 
+    async function loadTreks() {
       const { data, error } = await listTreks();
       if (error) {
-        trekListEl.innerText = "Error loading treks";
+        trekListEl.innerHTML = `<div class="error">Failed to load treks.</div>`;
         console.error(error);
         return;
       }
-
       if (!data || data.length === 0) {
-        trekListEl.innerText = "No treks available.";
+        trekListEl.innerHTML = `<div class="empty">No treks available.</div>`;
         return;
       }
 
-      trekListEl.innerHTML = data
-        .map(
-          (t) => `
-        <article class="card trek">
-          <h3>${t.trek_name}</h3>
-          <p><strong>Date:</strong> ${t.date}</p>
-          <p><strong>Price:</strong> ₹${t.price}</p>
-          <p>${t.description || ""}</p>
+      trekListEl.innerHTML = data.map(t => {
+        const image = safe(t.image_url, "/images/default.jpg");
+        const title = safe(t.title, "Untitled Trek");
+        const description = safe(t.description, "");
+        const amount = safe(t.amount, 0);
+        const oldPrice = t.old_price ? `<span class="old-price">₹${t.old_price}</span>` : "";
+        const region = safe(t.region, "HIMALAYAN");
+        const days = safe(t.days, "5 days");
+        const difficulty = safe(t.difficulty, "Moderate");
+        const nextDate = safe(t.next_date, "Soon");
 
-          <div class="row">
-            <button 
-              data-id="${t.id}" 
-              data-price="${t.price}" 
-              class="btn pay">
-              Pay
-            </button>
-          </div>
-        </article>
-        `
-        )
-        .join("");
+        return `
+          <article class="card trek-card">
+            <div class="card-image">
+              <img src="${image}" alt="${title}" />
+              <span class="badge">Himalayan-treks</span>
+            </div>
 
-      document.querySelectorAll(".pay").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const trekId = btn.dataset.id;
-          const price = Number(btn.dataset.price);
+            <div class="card-body">
+              <h3 class="card-title">${title}</h3>
+
+              <div class="meta">
+                <div class="meta-left">
+                  <div class="meta-item">📍 ${region}</div>
+                  <div class="meta-item">▲ ${difficulty}</div>
+                </div>
+                <div class="meta-right">
+                  <div class="meta-item">🕒 ${days}</div>
+                  <div class="meta-item">📅 Next: ${nextDate}</div>
+                </div>
+              </div>
+
+              <p class="card-desc">${description}</p>
+
+              <div class="card-footer">
+                <div class="price">
+                  <span class="current">₹${amount}</span>
+                  ${oldPrice}
+                </div>
+
+                <div class="actions">
+                  <button class="btn btn-outline view-btn" data-id="${t.id}">View</button>
+                  <button class="btn btn-primary book-btn" data-id="${t.id}" data-price="${amount}">Book</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      // Wire view & book handlers
+      document.querySelectorAll(".view-btn").forEach(b => {
+        b.addEventListener("click", () => {
+          const id = b.dataset.id;
+          window.location.href = `/trek.html?id=${id}`; // you can create trek detail page later
+        });
+      });
+
+      document.querySelectorAll(".book-btn").forEach(b => {
+        b.addEventListener("click", async () => {
+          const trekId = b.dataset.id;
+          const amount = Number(b.dataset.price || 0);
 
           try {
-            // 1️⃣ Create Razorpay order
-            const order = await createRazorpayOrder(price);
-
-            // 2️⃣ Open Razorpay checkout
-            const user = (await supabase.auth.getUser()).data.user;
-            const res = await openRazorpayCheckout(order, RAZORPAY_KEY_ID, {
-              prefill: { email: user.email },
-              description: "Trek booking",
-            });
-
-            // 3️⃣ Save booking in Supabase
-            await supabase.from("bookings").insert([
-              {
-                trek_id: trekId,
-                user_id: user.id,
-                amount_paid: price,
-                payment_id: res.razorpay_payment_id,
-              },
-            ]);
-
-            alert("Payment successful!");
+            // If you have createRazorpayOrder & openRazorpayCheckout implemented, replace below:
+            if (typeof window.createRazorpayOrder === "function" && typeof window.openRazorpayCheckout === "function") {
+              const order = await window.createRazorpayOrder(amount);
+              const user = (await supabase.auth.getUser())?.data?.user;
+              const res = await window.openRazorpayCheckout(order, "REPLACE_WITH_YOUR_KEY", { prefill: { email: user?.email }});
+              await supabase.from("bookings").insert([{ trek_id: trekId, user_id: user?.id || null, amount_paid: amount, payment_id: res.razorpay_payment_id }]);
+              alert("Payment successful");
+            } else {
+              // fallback: simple client-side confirmation
+              const ok = confirm(`Simulate booking for ₹${amount}? (Razorpay not configured)`);
+              if (ok) {
+                const user = (await supabase.auth.getUser())?.data?.user;
+                await supabase.from("bookings").insert([{ trek_id: trekId, user_id: user?.id || null, amount_paid: amount, payment_id: null }]);
+                alert("Booking recorded (simulated).");
+              }
+            }
           } catch (err) {
             console.error(err);
-            alert("Payment failed: " + err.message);
+            alert("Booking failed: " + (err.message || err));
           }
         });
       });
     }
 
-    document
-      .getElementById("btn-logout")
-      .addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "/login.html";
-      });
-
-    fetchAndRender();
+    loadTreks();
   </script>
+
+  <script type="module" src="/js/site.js"></script>
 </body>
 </html>

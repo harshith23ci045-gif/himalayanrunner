@@ -1,32 +1,104 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Himalayan Runners</title>
-    <link rel="stylesheet" href="./css/styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Himalayan Runners — Home</title>
+
+  <link rel="stylesheet" href="/css/site.css" />
 </head>
+<body>
 
-<body class="landing-page">
+  <!-- NAV / HEADER -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/index.html">
+        <img src="/images/hero-image.png" alt="logo" class="brand-logo" />
+        <span class="brand-name">Himalayan Runners</span>
+      </a>
 
-    <header class="hero-section">
+      <nav class="nav">
+        <a href="/index.html">Home</a>
+        <a href="/treks.html">Treks</a>
+        <a href="/treks.html#weekend">Weekend Getaways</a>
+        <a href="/blogs.html">Blogs</a>
+      </nav>
 
-        <img src="./images/hero-image.png" class="hero-image" alt="Himalayan Trekkers">
+      <div class="auth">
+        <a href="/login.html" class="btn btn-ghost">Log in</a>
+        <a href="/register.html" class="btn btn-primary">Sign up</a>
+      </div>
 
-        <h1 class="hero-title">
-            Explore Dream Treks <br> & Expeditions
-        </h1>
+      <button class="mobile-toggle" id="mobileToggle" aria-label="menu">☰</button>
+    </div>
+  </header>
 
-        <p class="hero-subtitle">
-            24×7 Support • Experienced Guides • Unforgettable Journeys
-        </p>
+  <!-- HERO -->
+  <main>
+    <section class="hero container hero-split">
+      <div class="hero-left">
+        <h1>Explore Dream Treks <br/> in the Himalayas</h1>
+        <p class="lead">Hand-picked expeditions • Certified guides • Safe & hassle-free experiences</p>
 
-        <div class="hero-buttons">
-            <a href="login.html" class="btn primary">Login / Register</a>
-            
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/treks.html">Explore Treks</a>
+          <a class="btn btn-outline" href="/login.html">Login / Register</a>
         </div>
 
-    
+        <ul class="feature-list">
+          <li>✅ Experienced guides</li>
+          <li>✅ Verified routes & permits</li>
+          <li>✅ 24/7 trek support</li>
+        </ul>
+      </div>
 
+      <div class="hero-right">
+        <div class="hero-visual">
+          <img src="/images/hero-image.png" alt="trek group" />
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features container">
+      <div class="feature-card">
+        <div class="icon">🧭</div>
+        <h4>Local Expert Guides</h4>
+        <p>Trained guides with local knowledge to make your trek safe and unforgettable.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="icon">⛰️</div>
+        <h4>Curated Routes</h4>
+        <p>Itineraries tested for safety, scenic value and feasibility.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="icon">🛡️</div>
+        <h4>Trip Support</h4>
+        <p>Emergency support and reliable logistics from start to finish.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER & Enquire -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <strong>Himalayan Runners</strong>
+        <p>Trusted trekking experiences across the Himalayas.</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="/treks.html">Treks</a>
+        <a href="/blogs.html">Blogs</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <a href="/contact.html" class="floating-enquire">❓ Enquire Now</a>
+
+  <script type="module" src="/js/site.js"></script>
 </body>
 </html>
