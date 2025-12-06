@@ -4,23 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Treks - Himalayan Runners</title>
-  <link rel="stylesheet" href="/css/treks-ui.css" />
+  <link rel="stylesheet" href="/css/styles.css" />
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 
 <body>
-  <header class="page-header">
-      <h2>Himalayan Treks</h2>
-  </header>
+  <main class="container">
+    <header class="top">
+      <h2>Available Treks</h2>
+      <a class="btn ghost" id="btn-logout">Logout</a>
+    </header>
 
-  <section class="trek-filter-bar">
-      <button class="filter-btn active">Himalayan Treks</button>
-      <button class="filter-btn">Sunrise Treks</button>
-      <button class="filter-btn">Weekend Treks</button>
-  </section>
-
-  <main class="trek-container">
-      <div id="trekList" class="trek-grid"></div>
+    <div id="trekList" class="list"></div>
   </main>
 
   <script type="module">
@@ -28,64 +23,88 @@
     import { listTreks } from "./js/trek-handler.js";
     import { createRazorpayOrder, openRazorpayCheckout } from "./js/razorpay-client.js";
 
-    const RAZORPAY_KEY_ID = "REPLACE_WITH_RAZORPAY_KEY_ID";
+    const RAZORPAY_KEY_ID = "REPLACE_WITH_RAZORPAY_KEY_ID"; // put your real key here
     const trekListEl = document.getElementById("trekList");
 
     async function fetchAndRender() {
-      const { data } = await listTreks();
 
-      trekListEl.innerHTML = data.map(t => `
-        <div class="trek-card">
-            <div class="trek-img">
-                <img src="${t.image_url || '/images/default-trek.jpg'}" />
-                <span class="tag">Himalayan-treks</span>
-            </div>
+      const { data, error } = await listTreks();
+      if (error) {
+        trekListEl.innerText = "Error loading treks";
+        console.error(error);
+        return;
+      }
 
-            <div class="trek-body">
-                <h3>${t.trek_name}</h3>
+      if (!data || data.length === 0) {
+        trekListEl.innerText = "No treks available.";
+        return;
+      }
 
-                <div class="trek-info">
-                    <p>📍 Himalayan</p>
-                    <p>🗓 ${t.days || '5 days'}</p>
-                </div>
+      trekListEl.innerHTML = data
+        .map(
+          (t) => `
+        <article class="card trek">
+          <h3>${t.trek_name}</h3>
+          <p><strong>Date:</strong> ${t.date}</p>
+          <p><strong>Price:</strong> ₹${t.price}</p>
+          <p>${t.description || ""}</p>
 
-                <p class="trek-desc">${t.description ?? ''}</p>
+          <div class="row">
+            <button 
+              data-id="${t.id}" 
+              data-price="${t.price}" 
+              class="btn pay">
+              Pay
+            </button>
+          </div>
+        </article>
+        `
+        )
+        .join("");
 
-                <div class="trek-price-row">
-                    <span class="price">₹${t.price}</span>
-                </div>
-
-                <button class="pay-btn" data-id="${t.id}" data-price="${t.price}">
-                    Book Now →
-                </button>
-            </div>
-        </div>
-      `).join("");
-
-      document.querySelectorAll(".pay-btn").forEach(btn => {
+      document.querySelectorAll(".pay").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const trekId = btn.dataset.id;
           const price = Number(btn.dataset.price);
 
-          const order = await createRazorpayOrder(price);
-          const user = (await supabase.auth.getUser()).data.user;
+          try {
+            // 1️⃣ Create Razorpay order
+            const order = await createRazorpayOrder(price);
 
-          const res = await openRazorpayCheckout(order, RAZORPAY_KEY_ID, {
-            prefill: { email: user.email },
-            description: "Trek booking",
-          });
+            // 2️⃣ Open Razorpay checkout
+            const user = (await supabase.auth.getUser()).data.user;
+            const res = await openRazorpayCheckout(order, RAZORPAY_KEY_ID, {
+              prefill: { email: user.email },
+              description: "Trek booking",
+            });
 
-          await supabase.from("bookings").insert([
-            { trek_id: trekId, user_id: user.id, amount_paid: price, payment_id: res.razorpay_payment_id }
-          ]);
+            // 3️⃣ Save booking in Supabase
+            await supabase.from("bookings").insert([
+              {
+                trek_id: trekId,
+                user_id: user.id,
+                amount_paid: price,
+                payment_id: res.razorpay_payment_id,
+              },
+            ]);
 
-          alert("Payment successful!");
+            alert("Payment successful!");
+          } catch (err) {
+            console.error(err);
+            alert("Payment failed: " + err.message);
+          }
         });
       });
     }
 
+    document
+      .getElementById("btn-logout")
+      .addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.href = "/login.html";
+      });
+
     fetchAndRender();
   </script>
-
 </body>
 </html>
