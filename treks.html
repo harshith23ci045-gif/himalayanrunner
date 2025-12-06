@@ -3,90 +3,98 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Treks – Himalayan Runners</title>
-
-  <link rel="stylesheet" href="/css/treks.css" />
+  <title>Treks - Himalayan Runners</title>
+  <link rel="stylesheet" href="/css/styles.css" />
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
-
 <body>
+  <main class="container">
+    <header class="top">
+      <h2>Available Treks</h2>
+      <a class="btn ghost" id="btn-logout">Logout</a>
+    </header>
 
-    <!-- CATEGORY BAR -->
-    <section class="category-bar">
-        <button class="cat active">Himalayan Treks</button>
-        <button class="cat">Sunrise Treks</button>
-        <button class="cat">Monsoon Treks</button>
-        <button class="cat">Yatra</button>
-        <button class="cat">Backpacking</button>
-    </section>
+    <div id="trekList" class="list"></div>
+  </main>
 
-    <!-- TREK GRID -->
-    <main class="trek-grid" id="trekList"></main>
+  <script type="module">
+    import { supabase } from "./js/supabase-client.js";
+    import { listTreks, createCouponsForUser, createTrek } from "./js/trek-handler.js";
+    import { createRazorpayOrder, openRazorpayCheckout } from "./js/razorpay-client.js";
 
-<script type="module">
-import { supabase } from "./js/supabase-client.js";
-import { listTreks } from "./js/trek-handler.js";
+    const RAZORPAY_KEY_ID = "REPLACE_WITH_RAZORPAY_KEY_ID"; // replace
+    const trekListEl = document.getElementById("trekList");
 
-function safe(v, fallback = "") {
-    return v === null || v === undefined ? fallback : v;
-}
+    async function fetchAndRender() {
+      const { data, error } = await listTreks();
+      if (error) { trekListEl.innerText = "Error loading treks"; return; }
+      if (!data || data.length === 0) trekListEl.innerText = "No treks yet.";
+      trekListEl.innerHTML = data.map(t => `
+        <article class="card trek">
+          <h3>${t.title}</h3>
+          <p>${t.description || ""}</p>
+          <div class="row">
+            <strong>₹${t.amount}</strong>
+            <button data-id="${t.id}" data-amount="${t.amount}" class="btn pay">Pay</button>
+          </div>
+        </article>
+      `).join("");
+      document.querySelectorAll(".pay").forEach(btn=>{
+        btn.addEventListener("click", async (ev)=>{
+          const trekId = btn.dataset.id;
+          let amount = parseFloat(btn.dataset.amount);
+          const coupon = prompt("Enter coupon code (optional)","");
+          if (coupon) {
+            // validate coupon
+            const cResp = await fetch("/js/trek-handler.js"); // dummy to ensure module bundled; real coupon check below
+            // call supabase directly for coupon check
+            const { data: couponData } = await supabase.from("coupons").select("*").eq("code", coupon).single();
+            if (!couponData || couponData.used) { alert("Invalid or used coupon"); return; }
+            amount = Math.round(amount * (1 - (couponData.discount_percent || 10) / 100) * 100) / 100;
+          }
 
-async function loadTreks() {
-    const { data, error } = await listTreks();
+          // create order from backend
+          try {
+            const order = await createRazorpayOrder(amount);
+            const res = await openRazorpayCheckout(order, RAZORPAY_KEY_ID, {
+              prefill: { email: (await supabase.auth.getUser()).data.user.email },
+              description: "Trek booking"
+            });
 
-    if (error) {
-        document.getElementById("trekList").innerHTML = "Error loading treks.";
-        console.error(error);
-        return;
+            // record booking in supabase
+            await supabase.from("bookings").insert([{
+              trek_id: trekId,
+              user_id: (await supabase.auth.getUser()).data.user.id,
+              amount_paid: amount,
+              payment_id: res.razorpay_payment_id
+            }]);
+
+            // mark coupon used if applied
+            if (coupon) {
+              await supabase.from("coupons").update({ used: true }).eq("code", coupon);
+            }
+
+            // generate two coupons for user
+            const userId = (await supabase.auth.getUser()).data.user.id;
+            const code1 = Math.random().toString(36).slice(2,8).toUpperCase();
+            const code2 = Math.random().toString(36).slice(2,8).toUpperCase();
+            await supabase.from("coupons").insert([{ code: code1, user_id: userId }, { code: code2, user_id: userId }]);
+
+            alert("Payment success! Coupons: " + code1 + " , " + code2);
+          } catch (err) {
+            console.error(err);
+            alert("Payment failed: " + err.message);
+          }
+        });
+      });
     }
 
-    if (!data || data.length === 0) {
-        document.getElementById("trekList").innerHTML = "No treks available.";
-        return;
-    }
+    document.getElementById("btn-logout").addEventListener("click", async ()=>{
+      await supabase.auth.signOut();
+      window.location.href = "/login.html";
+    });
 
-    document.getElementById("trekList").innerHTML = data.map(t => {
-        const image = safe(t.image_url, "/images/default.jpg");
-        const title = safe(t.title, "Untitled Trek");
-        const desc = safe(t.description, "");
-        const price = safe(t.amount, "0");
-        const oldPrice = t.old_price ? `<span class="old-price">₹${t.old_price}</span>` : "";
-
-        const days = safe(t.days, "5 days");
-        const difficulty = safe(t.difficulty, "Easy");
-        const region = safe(t.region, "HIMALAYAN");
-        const nextDate = safe(t.next_date, "Soon");
-
-        return `
-        <div class="trek-card">
-            
-            <div class="img-wrap">
-                <img src="${image}" alt="${title}" />
-                <span class="badge">Himalayan-treks</span>
-            </div>
-
-            <div class="content">
-                <h3>${title}</h3>
-
-                <div class="meta-row">
-                    <span>📍 ${region}</span>
-                    <span>🕒 ${days}</span>
-                </div>
-
-                <div class="meta-row">
-                    <span>▲ ${difficulty}</span>
-                    <span>📅 Next: ${nextDate}</span>
-                </div>
-
-                <p class="desc">${desc}</p>
-
-                <div class="price-row">
-                    <span class="price">₹${price}</span>
-                    ${oldPrice}
-                    <span class="arrow">→</span>
-                </div>
-            </div>
-
-        </div>
-        `;
-    }).join("");
+    fetchAndRender();
+  </script>
+</body>
+</html>
